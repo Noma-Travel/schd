@@ -1,295 +1,164 @@
+import { useEffect, useState } from "react";
+import { Download, Star } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
+import DialogPost from "@/components/console/dialog-post";
+  
+interface BlueprintField {
+  name: string;
+  layer?: string;
+  options?: Record<string, string>;
+  widget?: string;
+  required?: boolean;
+  [key: string]: any;
+}
+
+interface Blueprint {
+  label: string;
+  fields?: BlueprintField[];
+  [key: string]: any;
+}
+  
+interface TreeStructure {
+  portfolios: {
+    [key: string]: {
+      name: string;
+      portfolio_id: string;
+      orgs: object;
+      teams: object;
+      tools: object;
+    };
+  };
+  user_id: string;
+}
+
+interface SchdOnboardingProps {
+  tree: TreeStructure;
+}
+
 import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
-  } from "@/components/ui/card"
-  
-  import { useState, useEffect} from 'react';
-  import DialogPost from "@/components/console/dialog-post"
-  
-  interface Blueprint {
-      label: string;
-      // Add other properties as needed
-      [key: string]: any; // This allows for additional dynamic properties if necessary
-  }
-  
-  interface TreeStructure {
-      portfolios: {
-          [key: string]: {
-              name: string;
-              portfolio_id: string;
-              orgs: object;
-              teams: object;
-              tools: object;
+  Clock8,
+} from "lucide-react"
+
+export default function SchdOnboarding({ tree }: SchdOnboardingProps) {
+  const [blueprint, setBlueprint] = useState<Blueprint>({ label: "" });
+  const [modifiedBlueprint, setModifiedBlueprint] = useState<Blueprint>({ label: "" });
+
+  useEffect(() => {
+    const fetchBlueprint = async () => {
+      try {
+        const blueprintResponse = await fetch(
+          `${import.meta.env.VITE_API_URL}/_blueprint/irma/schd_onboardings/last`,
+          {
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${sessionStorage.accessToken}`,
+            },
           }
-      };
-      user_id: string;
-  }
-  
-  interface SchdOnboardingProps {
-      tree: TreeStructure;
-  }
+        );
+        const blueprintData = await blueprintResponse.json();
+        setBlueprint(blueprintData);
+        setModifiedBlueprint({ ...blueprintData });
+      } catch (err) {
+        console.log(err);
+      }
+    };
 
-  const raw_blueprint = {
-    "_id": "5e834ed5-d532-4852-a20f-290192019ab23",
-    "added": "2025-02-06T09:22:46.229773",
-    "blueprint_origin": "",
-    "description": "Onboarding for Scheduler",
-    "fields": [
-        {
-            "cardinality": "single",
-            "default": "",
-            "hint": "Portfolio this handle should belong to",
-            "label": "Portfolio",
-            "layer": "2",
-            "multilingual": false,
-            "name": "portfolio",
-            "order": "2",
-            "required": false,
-            "semantic": "hs:portfolio",
-            "source": "",
-            "type": "string",
-            "widget": "text"
-        },
-        {
-            "cardinality": "single",
-            "default": "",
-            "hint": "Org the app should belong to",
-            "label": "Org",
-            "layer": "2",
-            "multilingual": false,
-            "name": "org",
-            "order": "3",
-            "required": false,
-            "semantic": "hs:org",
-            "source": "",
-            "type": "string",
-            "widget": "text"
-        },
-        {
-            "cardinality": "single",
-            "default": "Admin",
-            "hint": "Team the main user should belong to",
-            "label": "Team",
-            "layer": "2",
-            "multilingual": false,
-            "name": "team",
-            "order": "4",
-            "required": false,
-            "semantic": "hs:team",
-            "source": "",
-            "type": "string",
-            "widget": "text"
-        },
-        {
-            "cardinality": "single",
-            "default": "",
-            "hint": "Tool the user is getting onboarded to",
-            "label": "Tool",
-            "layer": "2",
-            "multilingual": false,
-            "name": "tool",
-            "order": "5",
-            "required": false,
-            "semantic": "hs:tool",
-            "source": "",
-            "type": "string",
-            "widget": "text"
-        },
-        {
-            "cardinality": "single",
-            "default": "16",
-            "hint": "How often should the agent run an operational cycle?",
-            "label": "Refresh Rate (minutes)",
-            "layer": "0",
-            "multilingual": false,
-            "name": "refresh_rate",
-            "order": "6",
-            "required": false,
-            "semantic": "hs:refresh",
-            "type": "string",
-            "widget": "text"
+    fetchBlueprint();
+  }, []);
+
+  useEffect(() => {
+    if (!tree?.portfolios || !blueprint?.fields) {
+      return;
+    }
+
+    const portfolioDict: Record<string, string> = {};
+    Object.entries(tree.portfolios).forEach(([portfolioId, portfolio]) => {
+      portfolioDict[portfolioId] = portfolio.name;
+    });
+
+    const updatedBlueprint = {
+      ...blueprint,
+      fields: blueprint.fields.map((field: BlueprintField) => {
+        if (field.name === "portfolio") {
+          return {
+            ...field,
+            layer: "0",
+            options: portfolioDict,
+            widget: "select",
+            required: true,
+          };
         }
-      ],
-      "handle": "irma",
-      "irn": "irn:blueprint:irma:maker_onboardings",
-      "label": "Maker Onboardings",
-      "license": "CC BY",
-      "name": "maker_onboardings",
-      "public": true,
-      "singleton": false,
-      "status": "final",
-      "uri": "https://helloirma.com/_blueprint/irma/maker_onboardings/1.0.1",
-      "version": "0.0.1"
-  }
-  
-  export default function SchdOnboarding({ tree }: SchdOnboardingProps) {
-  
-      const [blueprint, setBlueprint] = useState<Blueprint>({ label: '' });
-      const [modifiedBlueprint, setModifiedBlueprint] = useState<Blueprint>({ label: '' });
-      const [error, setError] = useState<Error | null>(null);
+        return field;
+      }),
+    };
 
-      console.log(tree)
+    setModifiedBlueprint(updatedBlueprint);
+  }, [tree, blueprint]);
 
-      
-      useEffect(() => {
+  const refreshAction = () => {};
+  const portfolioField = modifiedBlueprint.fields?.find(
+    (field: BlueprintField) => field.name === "portfolio"
+  );
+  const hasPortfolioOptions =
+    !!portfolioField?.options && Object.keys(portfolioField.options).length > 0;
 
-  
-        {
-        const fetchBlueprint = async () => {
-          try {
-            // Fetch Blueprint
-            const blueprintResponse = await fetch(`${import.meta.env.VITE_API_URL}/_blueprint/irma/schd_onboardings/last`, {
-              method: 'GET',
-              headers: {
-                'Authorization': `Bearer ${sessionStorage.accessToken}`,
-              },
-            });
-            const blueprintData = await blueprintResponse.json();
-            //const blueprintData = raw_blueprint;
-            setBlueprint(blueprintData);
-            setModifiedBlueprint({ ...blueprintData }); // Create a shallow copy of the blueprint data
-            
+  return (
+    <Card className="group relative overflow-hidden border-border bg-card transition-all hover:border-accent/50 hover:shadow-lg hover:shadow-accent/5">
+      <div className="absolute right-3 top-3">
+        <Badge className="bg-accent text-accent-foreground">Verified</Badge>
+      </div>
+      <CardContent className="p-5">
+        <div className="mb-4 flex items-start gap-4">
+          <Clock8 size={68} />
+          <div className="min-w-0 flex-1">
+            <h3 className="truncate font-semibold text-foreground">Scheduler App</h3>
+            <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">
+              Configure recurring cycles and automated operations for your agent.
+            </p>
+          </div>
+        </div>
 
-          } catch (err) {
+        <div className="mb-4 flex flex-wrap gap-1.5">
+          <span className="rounded-md bg-secondary px-2 py-0.5 text-xs text-muted-foreground">
+            scheduling
+          </span>
+          <span className="rounded-md bg-secondary px-2 py-0.5 text-xs text-muted-foreground">
+            automation
+          </span>
+          <span className="rounded-md bg-secondary px-2 py-0.5 text-xs text-muted-foreground">
+            operations
+          </span>
+        </div>
 
-            if (err instanceof Error) {
-              setError(err);  // Now TypeScript knows `err` is of type `Error`.
-            } else {
-              setError(new Error("An unknown error occurred"));  // Handle other types
-            }
-            console.log(error)
-          }
-        };
-  
-        fetchBlueprint();
-        }
-
-      }, []);
-
-      useEffect(() => {
-        if (tree && tree.portfolios && blueprint && blueprint.fields) {
-            // Create portfolio dictionary from the object
-            const portfolio_dict: { [key: string]: string } = {};
-            const portfolio_orgs_dict: { [key: string]: any } = {};
-            const portfolio_teams_dict: { [key: string]: any } = {};
-            Object.entries(tree.portfolios).forEach(([portfolioId, portfolio]) => {
-                portfolio_dict[portfolioId] = portfolio.name;
-                //portfolio_orgs_dict[portfolioId] = {};
-                //portfolio_teams_dict[portfolioId] = {};
-                //Object.entries(portfolio.orgs).forEach(([orgId, org]: [string, any]) => {
-                //    portfolio_orgs_dict[portfolioId][orgId] = org.name;
-                //});
-                //Object.entries(portfolio.teams).forEach(([teamId, team]: [string, any]) => {
-                //    portfolio_teams_dict[portfolioId][teamId] = team.name;
-                //});
-            });
-
-            // const teams_dict: { [portfolioId: string]: { [teamId: string]: string } } = {};
-            // Object.values(tree.portfolios).forEach(portfolio => {
-            //     teams_dict[portfolio.portfolio_id] = {};
-            //     Object.entries(portfolio.teams).forEach(([teamId, team]) => {
-            //         teams_dict[portfolio.portfolio_id][teamId] = team.name;
-            //     });
-            // });
-
-            const updatedBlueprint = {
-                ...modifiedBlueprint,
-                fields: modifiedBlueprint.fields.map(field => {
-                    
-                    if (field.name === 'portfolio') {
-                        return {
-                            ...field,
-                            layer: '0',
-                            options: portfolio_dict,
-                            widget: 'select',
-                            required: true
-                        };
-                    }
-
-                    //if (field.name === 'org') {
-                    //    return {
-                    //        ...field,
-                    //        layer: '0',
-                    //        options: portfolio_orgs_dict,
-                    //        widget: 'select',
-                    //        required: true
-                    //    };
-                    //}
-
-                    //if (field.name === 'team') {
-                    //    return {
-                    //        ...field,
-                    //        layer: '0',
-                    //        options: portfolio_orgs_dict,
-                    //        widget: 'select',
-                    //        required: true
-                    //    };
-                    //}
-
-                    
-
-                    return field;
-                })
-            };
-            console.log('updatedBlueprint:',updatedBlueprint);
-            setModifiedBlueprint(updatedBlueprint);
-        }
-      }, [tree, blueprint]); // Add both dependencies
-
-      // Function to update the state
-      const refreshAction = () => {
-  
-      };
-  
-      // Check if portfolio options are available
-      const portfolioField = modifiedBlueprint.fields?.find(field => field.name === 'portfolio');
-      const hasPortfolioOptions = portfolioField?.options && Object.keys(portfolioField.options).length > 0;
-
-      console.log('modifiedBlueprint:',modifiedBlueprint);
-      console.log('portfolioField:',portfolioField);
-      console.log('hasPortfolioOptions:',hasPortfolioOptions);
-  
-      return (
-     
-        <>
-          <Card>
-            <CardHeader>
-              <CardTitle>Scheduler App</CardTitle>
-              <CardDescription>
-                      This app helps you configure the agent.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-3">
-            
-              
-
-              <div className="flex flex-row gap-3 text-xs text-muted-foreground">
-                <div>This will install the Scheduler App in an existing portfolio </div>
-                {hasPortfolioOptions ? (
-                  <DialogPost
-                      refreshUp={refreshAction}
-                      blueprint={modifiedBlueprint}
-                      title={`Activate your portfolio`}
-                      instructions="Please fill the following fields:"
-                      path={`${import.meta.env.VITE_API_URL}/_schd/run/schd/schd_onboardings`}
-                      method='POST'
-                      buttontext='Install'
-                  />
-                ) : (
-                  <div className="text-red-500 font-medium">
-                    No portfolio(s) available. Create one first.
-                  </div>
-                )}
-              </div>             
-            </CardContent>             
-          </Card> 
-          
-          
-        </>
-      
-      )
-  }
+        <div className="flex items-center justify-between border-t border-border pt-4">
+          <div className="flex items-center gap-4">
+            <div className="text-xs text-muted-foreground">by Renglo</div>
+            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+              <Download className="h-3.5 w-3.5" />
+              Included
+            </div>
+            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+              <Star className="h-3.5 w-3.5 fill-amber-500 text-amber-500" />
+              Core
+            </div>
+          </div>
+          {hasPortfolioOptions ? (
+            <DialogPost
+              refreshUp={refreshAction}
+              blueprint={modifiedBlueprint}
+              title="Activate your portfolio"
+              instructions="Please fill the following fields:"
+              path={`${import.meta.env.VITE_API_URL}/_schd/run/schd/schd_onboardings`}
+              method="POST"
+              buttontext="Install"
+            />
+          ) : (
+            <div className="text-xs font-medium text-red-500">Create a portfolio first</div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
   
