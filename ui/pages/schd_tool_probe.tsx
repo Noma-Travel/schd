@@ -27,6 +27,8 @@ import DynamicSelect from '@/components/console/dynamic-select'
 
 
 import TriggerEndpoint from "@/components/console/trigger-endpoint"
+import { formatBlueprintFieldValue } from "@/lib/blueprint-field-display"
+import { fieldLayer, overloadBlueprint, parseStructuredFieldJson } from "@/lib/console_utils"
 
 
 interface Blueprint {
@@ -47,7 +49,8 @@ interface FieldDictionary {
   label?: string;
   hint?: string;
   widget?: string;
-  order?: number;
+  order?: number | string;
+  layer?: number | string;
 };
 }
 
@@ -150,10 +153,8 @@ export default function SchdToolProbe({ portfolio, org, tool }: ToolDataCRUDProp
 
   // 1
   useEffect(() => {
-      // Function to fetch config Blueprint
       const fetchBlueprint = async () => {
         try {
-          // Fetch Blueprint
           const blueprintResponse = await fetch(`${import.meta.env.VITE_API_URL}/_blueprint/irma/${ring}`, {
             method: 'GET',
             headers: {
@@ -162,22 +163,22 @@ export default function SchdToolProbe({ portfolio, org, tool }: ToolDataCRUDProp
           });
           const blueprintData = await blueprintResponse.json();
           setBlueprint(blueprintData);
-
-  
+          const updated = await overloadBlueprint(blueprintData, portfolio, org);
+          if (updated) {
+            setBlueprint(updated);
+          }
         } catch (err) {
           if (err instanceof Error) {
-            setError(err);  // Now TypeScript knows `err` is of type `Error`.
+            setError(err);
           } else {
-            setError(new Error("An unknown error occurred"));  // Handle other types
+            setError(new Error("An unknown error occurred"));
           }
           console.log(error)
-        } finally {
-          //setLoading(false);
         }
       };
-  
-      fetchBlueprint();
-  }, []);
+
+      void fetchBlueprint();
+  }, [ring, portfolio, org]);
 
 
   // 2
@@ -228,75 +229,42 @@ export default function SchdToolProbe({ portfolio, org, tool }: ToolDataCRUDProp
   }, [blueprint]);
 
 
-  // Helper function to safely parse input that might be JSON or Python-style string
-  const safeParseInput = (input: any): any => {
-      // If it's already an array or object, return as is
-      if (Array.isArray(input) || (typeof input === 'object' && input !== null)) {
-          return input;
-      }
-      
-      // If it's not a string, return null
-      if (typeof input !== 'string') {
-          return null;
-      }
-      
-      // Try parsing as JSON first
-      try {
-          return JSON.parse(input);
-      } catch (e) {
-          // If JSON parse fails, try converting Python-style single quotes to double quotes
-          try {
-              // Replace single quotes with double quotes, but be careful with apostrophes in text
-              // This handles: {'name': 'value'} -> {"name": "value"}
-              const jsonString = input
-                  .replace(/'/g, '"')           // Replace all single quotes with double quotes
-                  .replace(/True/g, 'true')     // Python True -> JSON true
-                  .replace(/False/g, 'false')   // Python False -> JSON false
-                  .replace(/None/g, 'null');    // Python None -> JSON null
-              return JSON.parse(jsonString);
-          } catch (e2) {
-              console.error('Error parsing input:', e2);
-              return null;
-          }
-      }
-  };
-
-  // Parse inputs JSON when data changes
+  // Parse tool input schema when data changes (API may return object/array or JSON string)
   useEffect(() => {
-      if (data?.['input']) {
-          const parsedInput = safeParseInput(data['input']);
-          
-          if (parsedInput) {
-              // Handle new format: array of objects with name, hint, type, required
-              if (Array.isArray(parsedInput)) {
-                  const inputFields = parsedInput.reduce((acc, field) => {
-                      acc[field.name] = field;
-                      return acc;
-                  }, {} as Record<string, any>);
-                  setInputs(inputFields);
-                  
-                  // Initialize input values with empty strings
-                  const initialValues = parsedInput.reduce((acc, field) => {
-                      acc[field.name] = '';
-                      return acc;
-                  }, {} as Record<string, string>);
-                  setInputValues(initialValues);
-              } else {
-                  // Handle old format: simple object with field names as keys
-                  setInputs(parsedInput);
-                  // Initialize input values with empty strings
-                  const initialValues = Object.keys(parsedInput).reduce((acc, key) => {
-                      acc[key] = '';
-                      return acc;
-                  }, {} as Record<string, string>);
-                  setInputValues(initialValues);
-              }
-          } else {
-              setInputs({})
-              setInputValues({})
-          }
+      if (!data?.['input']) {
+          setInputs({})
+          setInputValues({})
+          return
       }
-  }, [data,toolId]);
+      const parsedInput = parseStructuredFieldJson(data['input'])
+      if (!parsedInput) {
+          setInputs({})
+          setInputValues({})
+          return
+      }
+      if (Array.isArray(parsedInput)) {
+          const inputFields = parsedInput.reduce((acc, field) => {
+              acc[field.name] = field;
+              return acc;
+          }, {} as Record<string, any>);
+          setInputs(inputFields);
+          const initialValues = parsedInput.reduce((acc, field) => {
+              acc[field.name] = '';
+              return acc;
+          }, {} as Record<string, string>);
+          setInputValues(initialValues);
+      } else if (typeof parsedInput === 'object') {
+          setInputs(parsedInput as Record<string, any>);
+          const initialValues = Object.keys(parsedInput).reduce((acc, key) => {
+              acc[key] = '';
+              return acc;
+          }, {} as Record<string, string>);
+          setInputValues(initialValues);
+      } else {
+          setInputs({})
+          setInputValues({})
+      }
+  }, [data, toolId]);
 
     
   // Function to update the state
@@ -471,14 +439,14 @@ export default function SchdToolProbe({ portfolio, org, tool }: ToolDataCRUDProp
             
             {Object.entries(data)
               .sort(([keyA], [keyB]) => {
-                const orderA = fieldsDictionary[keyA]?.order ?? Number.MAX_SAFE_INTEGER;
-                const orderB = fieldsDictionary[keyB]?.order ?? Number.MAX_SAFE_INTEGER;
+                const orderA = Number(fieldsDictionary[keyA]?.order ?? Number.MAX_SAFE_INTEGER);
+                const orderB = Number(fieldsDictionary[keyB]?.order ?? Number.MAX_SAFE_INTEGER);
                 return orderA - orderB;
               })
               .map(([key, value]) => (
                 fieldsDictionary[key]?.widget !== 'image' && 
                 !key.startsWith('_') && 
-                (fieldsDictionary[key]?.layer ?? 0) == 1 ? (
+                fieldLayer(fieldsDictionary[key] ?? {}) === 1 ? (
                     <Card 
                         key={key}
                         
@@ -502,8 +470,8 @@ export default function SchdToolProbe({ portfolio, org, tool }: ToolDataCRUDProp
                                     method='PUT'
                                 />
                               </span>
-                              <span className="whitespace-pre-wrap min-w-0">
-                                {blueprint?.rich?.[blueprint.sources?.[key]?.split(':')[0]]?.[value] ?? value}
+                              <span className="min-w-0 flex-1 text-sm">
+                                {formatBlueprintFieldValue(value, key, blueprint)}
                               </span>
                           </span>  
                       </CardContent>  

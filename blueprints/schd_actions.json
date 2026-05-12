@@ -203,6 +203,20 @@
     "semantic": "isd:reference",
     "type": "string",
     "widget": "textarea"
+   },
+   {
+    "cardinality": "single",
+    "default": "_",
+    "hint": "Functions and settings running before an after a tool call",
+    "label": "Hooks",
+    "layer": "1",
+    "multilingual": false,
+    "name": "hooks",
+    "order": "15",
+    "required": false,
+    "semantic": "isd:hooks",
+    "type": "object",
+    "widget": "textarea"
    }
   ],
   "handle": "irma",

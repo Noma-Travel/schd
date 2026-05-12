@@ -57,7 +57,7 @@ export default function ToolSchdSideNav({portfolio, org, tool, section, onNaviga
           <TooltipProvider>
             <Tooltip>
                 <TooltipTrigger asChild>
-                  <div className="hidden flex items-center flex-col">
+                  <div className="flex items-center flex-col">
                     <button
                       onClick={() => onNavigate(`/${portfolio}/${org}/schd/action`)}
                       className={
@@ -67,18 +67,18 @@ export default function ToolSchdSideNav({portfolio, org, tool, section, onNaviga
                       }
                     >
                         <Zap color="#19baf0" className="h-5 w-5" />
-                        <span className="sr-only">Action</span>
+                        <span className="sr-only">Action UX</span>
                     </button>
-                    <span className="text-xxs ">Action</span>
+                    <span className="text-xxs ">Action UX</span>
                   </div>
                 </TooltipTrigger>
-                <TooltipContent side="right">Action</TooltipContent>
+                <TooltipContent side="right">Action UX</TooltipContent>
             </Tooltip>
           </TooltipProvider>
           <TooltipProvider>
             <Tooltip>
                 <TooltipTrigger asChild>
-                  <div className="hidden flex items-center flex-col">
+                  <div className="flex items-center flex-col">
                     <button
                       onClick={() => onNavigate(`/${portfolio}/${org}/schd/tool`)}
                       className={
@@ -88,12 +88,12 @@ export default function ToolSchdSideNav({portfolio, org, tool, section, onNaviga
                       }
                     >
                         <Wrench color="#19baf0" className="h-5 w-5" />
-                        <span className="sr-only">Tool</span>
+                        <span className="sr-only">Too UX</span>
                     </button>
-                    <span className="text-xxs ">Tool</span>
+                    <span className="text-xxs ">Tool UX</span>
                   </div>
                 </TooltipTrigger>
-                <TooltipContent side="right">Tool</TooltipContent>
+                <TooltipContent side="right">Tool UX</TooltipContent>
             </Tooltip>
           </TooltipProvider>
 
